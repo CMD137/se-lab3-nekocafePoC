@@ -1,0 +1,18 @@
+name: CD
+on:
+  push: { branches: [main] }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare environment values
+        run: cp .env.example .env
+      - name: Deploy to dev
+        run: echo "helm upgrade --install nekocafe ./infra/helm -f ./infra/helm/values-dev.yaml --namespace dev --create-namespace"
+      - name: Canary
+        run: |
+          echo "helm upgrade --install nekocafe ./infra/helm --set canary.enabled=true --set canary.weight=5"
+          echo "After metrics are healthy, promote to 100%."
+      - name: Rollback policy
+        run: echo "Rollback when P95 > 800ms for 5m or error rate > 1% for 5m."

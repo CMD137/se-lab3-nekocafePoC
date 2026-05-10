@@ -1,0 +1,26 @@
+groups:
+  - name: nekocafe-reservation-alerts
+    rules:
+      - alert: ReservationHighP95
+        expr: histogram_quantile(0.95, sum(rate(http_server_duration_seconds_bucket{service="reservation-service"}[5m])) by (le)) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Reservation API P95 is above 800ms.
+      - alert: ReservationHighErrorRate
+        expr: sum(rate(http_requests_total{service="reservation-service",status=~"5.."}[5m])) / sum(rate(http_requests_total{service="reservation-service"}[5m])) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Reservation API error rate is above 1%.
+  - name: nekocafe-platform-alerts
+    rules:
+      - alert: ServiceHighCPU
+        expr: rate(container_cpu_usage_seconds_total{name=~"nekocafe-reservation|nekocafe-member"}[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Application container CPU usage is above 80%.

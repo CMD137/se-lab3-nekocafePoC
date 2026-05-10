@@ -1,0 +1,19 @@
+{
+  "name": "reservation-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NekoCafe reservation service PoC",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test tests/*.test.js",
+    "lint": "node --check src/main.js tests/*.test.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.3",
+    "pino": "^9.6.0",
+    "redis": "^4.7.0"
+  }
+}

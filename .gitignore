@@ -1,0 +1,5 @@
+.env
+.token.tmp
+node_modules/
+services/*/node_modules/
+services/*/coverage/
