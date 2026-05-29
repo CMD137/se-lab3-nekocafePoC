@@ -3,3 +3,7 @@
 node_modules/
 services/*/node_modules/
 services/*/coverage/
+
+# Local document evidence and ad hoc verification outputs
+evidence/
+artifacts/

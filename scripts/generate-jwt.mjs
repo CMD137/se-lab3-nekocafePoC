@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-function loadDotEnv() {
+export function loadDotEnv() {
   const envPath = resolve(process.cwd(), ".env");
   if (!existsSync(envPath)) {
     return {};
@@ -29,34 +29,40 @@ function encodeJson(value) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
-const env = loadDotEnv();
-const secret = process.env.JWT_SECRET || env.JWT_SECRET;
+export function createDevToken(secret) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = {
+    alg: "HS256",
+    typ: "JWT",
+  };
+  const payload = {
+    sub: "MEM-220501208",
+    customerId: "CUS-10086",
+    role: "member",
+    scope: ["reservation:write", "reservation:read", "member:write", "member:read"],
+    iss: "nekocafe-dev",
+    aud: "nekocafe-local",
+    iat: now,
+    exp: now + 12 * 60 * 60,
+  };
 
-if (!secret) {
-  console.error("JWT secret was not found. Load .env or set JWT_SECRET first.");
-  process.exit(1);
+  const encodedHeader = encodeJson(header);
+  const encodedPayload = encodeJson(payload);
+  const signature = createHmac("sha256", secret)
+    .update(`${encodedHeader}.${encodedPayload}`)
+    .digest("base64url");
+
+  return `${encodedHeader}.${encodedPayload}.${signature}`;
 }
 
-const now = Math.floor(Date.now() / 1000);
-const header = {
-  alg: "HS256",
-  typ: "JWT",
-};
-const payload = {
-  sub: "MEM-220501208",
-  customerId: "CUS-10086",
-  role: "member",
-  scope: ["reservation:write", "reservation:read", "member:write", "member:read"],
-  iss: "nekocafe-dev",
-  aud: "nekocafe-local",
-  iat: now,
-  exp: now + 12 * 60 * 60,
-};
+if (import.meta.url === `file://${process.argv[1].replace(/\\/gu, "/")}`) {
+  const env = loadDotEnv();
+  const secret = process.env.JWT_SECRET || env.JWT_SECRET;
 
-const encodedHeader = encodeJson(header);
-const encodedPayload = encodeJson(payload);
-const signature = createHmac("sha256", secret)
-  .update(`${encodedHeader}.${encodedPayload}`)
-  .digest("base64url");
+  if (!secret) {
+    console.error("JWT secret was not found. Load .env or set JWT_SECRET first.");
+    process.exit(1);
+  }
 
-process.stdout.write(`${encodedHeader}.${encodedPayload}.${signature}`);
+  process.stdout.write(createDevToken(secret));
+}

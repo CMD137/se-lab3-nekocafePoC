@@ -1,4 +1,8 @@
-.PHONY: up up-mq down ps logs test lint token smoke
+.PHONY: deps up up-mq down ps logs test lint token smoke
+
+deps:
+	npm.cmd --prefix services/reservation ci
+	npm.cmd --prefix services/member ci
 
 up:
 	docker compose up -d --build
@@ -27,5 +31,4 @@ token:
 	node scripts/generate-jwt.mjs
 
 smoke:
-	node scripts/generate-jwt.mjs > .token.tmp
-	@echo "Use the token in .token.tmp to call the APIs."
+	node scripts/smoke.mjs

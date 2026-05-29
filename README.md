@@ -46,6 +46,14 @@ cp .env.example .env
 
 ### 2. 启动本地 PoC
 
+先安装依赖:
+
+```bash
+make deps
+```
+
+再启动容器:
+
 ```bash
 make up
 ```
@@ -120,6 +128,26 @@ curl -X GET "http://localhost:8082/member/v1/members/MEM-220501208" \
 ```bash
 make test
 ```
+
+当前路由级自动化覆盖的主要端点包括:
+
+- `reservation-service`: `healthz`、余位查询、预约列表、创建预约、查询单条预约、确认、取消、改期、到店核销、候补登记
+- `member-service`: `healthz`、会员档案、偏好更新、权益列表、权益核销、积分流水、隐私导出、隐私删除
+
+## Smoke 验证
+
+在 `make up` 成功后，可直接运行:
+
+```bash
+make smoke
+```
+
+该命令会自动:
+
+- 读取本地 `.env`
+- 生成开发态 JWT
+- 校验 `reservation` / `member` 的 `healthz`
+- 调用预约余位与会员档案接口
 
 ## Monorepo 取舍说明
 
