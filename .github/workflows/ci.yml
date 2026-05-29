@@ -63,7 +63,7 @@ jobs:
         run: docker compose build reservation member
 
       - name: Scan reservation image with Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: nekocafe-reservation:latest
           format: table
@@ -73,7 +73,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Scan member image with Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: nekocafe-member:latest
           format: table
