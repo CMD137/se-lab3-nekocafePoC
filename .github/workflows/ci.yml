@@ -66,6 +66,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: nekocafe-reservation:latest
+          scanners: vuln
           format: table
           output: artifacts/trivy-reservation.txt
           severity: HIGH,CRITICAL
@@ -76,6 +77,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: nekocafe-member:latest
+          scanners: vuln
           format: table
           output: artifacts/trivy-member.txt
           severity: HIGH,CRITICAL
