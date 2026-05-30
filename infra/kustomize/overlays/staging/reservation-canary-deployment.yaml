@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reservation-canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reservation
+      release: canary
+  template:
+    metadata:
+      labels:
+        app: reservation
+        release: canary
+    spec:
+      containers:
+        - name: reservation
+          image: ghcr.io/cmd137/nekocafe-reservation:v1.1.0-canary
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SERVICE_NAME
+              value: reservation-service
+            - name: SERVICE_VERSION
+              value: v1.1.0-canary
+            - name: RELEASE_CHANNEL
+              value: canary
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.monitoring:4318
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080

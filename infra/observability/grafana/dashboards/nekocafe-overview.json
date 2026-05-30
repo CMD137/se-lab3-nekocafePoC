@@ -1,0 +1,140 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (release_channel) (rate(nekocafe_http_server_requests_total{service_name=\"reservation-service\"}[1m]))",
+          "legendFormat": "{{release_channel}}"
+        }
+      ],
+      "title": "Reservation QPS",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, release_channel) (rate(nekocafe_http_server_duration_ms_bucket{service_name=\"reservation-service\"}[5m])))",
+          "legendFormat": "{{release_channel}}"
+        }
+      ],
+      "title": "Reservation P99 Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum by (release_channel) (rate(nekocafe_http_server_requests_total{service_name=\"reservation-service\",status_code=~\"5..\"}[5m])) / clamp_min(sum by (release_channel) (rate(nekocafe_http_server_requests_total{service_name=\"reservation-service\"}[5m])), 0.0001)",
+          "legendFormat": "{{release_channel}}"
+        }
+      ],
+      "title": "Reservation Error Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "avg by (service_name, release_channel) (nekocafe_process_memory_rss_bytes{service_name=~\"reservation-service|member-service\"})",
+          "legendFormat": "{{service_name}}/{{release_channel}}"
+        }
+      ],
+      "title": "Process Memory Usage",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "nekocafe",
+    "poc"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "title": "NekoCafe PoC Overview",
+  "uid": "nekocafe-overview",
+  "version": 1
+}

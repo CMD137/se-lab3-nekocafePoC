@@ -1,0 +1,29 @@
+namespace: staging
+
+resources:
+  - ../../base
+  - reservation-canary-deployment.yaml
+  - reservation-canary-service.yaml
+  - reservation-canary-ingress.yaml
+
+patches:
+  - target:
+      kind: Deployment
+      name: reservation
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  - target:
+      kind: Deployment
+      name: member
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+images:
+  - name: ghcr.io/cmd137/nekocafe-reservation
+    newTag: v1.0.0
+  - name: ghcr.io/cmd137/nekocafe-member
+    newTag: v1.0.0

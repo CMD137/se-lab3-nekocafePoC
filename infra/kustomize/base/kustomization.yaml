@@ -1,0 +1,10 @@
+resources:
+  - reservation-deployment.yaml
+  - reservation-service.yaml
+  - member-deployment.yaml
+  - member-service.yaml
+  - ingress.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: nekocafe
+  app.kubernetes.io/managed-by: kustomize

@@ -1,0 +1,18 @@
+http:
+  routers:
+    reservation-router:
+      rule: "PathPrefix(`/reservation/v1`)"
+      entryPoints:
+        - web
+      service: reservation-rollout
+    member-router:
+      rule: "PathPrefix(`/member/v1`)"
+      entryPoints:
+        - web
+      service: member-direct
+
+  services:
+    member-direct:
+      loadBalancer:
+        servers:
+          - url: "http://member:8080"

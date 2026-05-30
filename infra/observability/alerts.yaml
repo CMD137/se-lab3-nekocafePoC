@@ -2,14 +2,14 @@ groups:
   - name: nekocafe-reservation-alerts
     rules:
       - alert: ReservationHighP95
-        expr: histogram_quantile(0.95, sum(rate(http_server_duration_seconds_bucket{service="reservation-service"}[5m])) by (le)) > 0.8
+        expr: histogram_quantile(0.95, sum by (le, release_channel) (rate(nekocafe_http_server_duration_ms_bucket{service_name="reservation-service"}[5m]))) > 800
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: Reservation API P95 is above 800ms.
       - alert: ReservationHighErrorRate
-        expr: sum(rate(http_requests_total{service="reservation-service",status=~"5.."}[5m])) / sum(rate(http_requests_total{service="reservation-service"}[5m])) > 0.01
+        expr: sum by (release_channel) (rate(nekocafe_http_server_requests_total{service_name="reservation-service",status_code=~"5.."}[5m])) / clamp_min(sum by (release_channel) (rate(nekocafe_http_server_requests_total{service_name="reservation-service"}[5m])), 0.0001) > 0.01
         for: 5m
         labels:
           severity: critical
@@ -17,10 +17,17 @@ groups:
           summary: Reservation API error rate is above 1%.
   - name: nekocafe-platform-alerts
     rules:
-      - alert: ServiceHighCPU
-        expr: rate(container_cpu_usage_seconds_total{name=~"nekocafe-reservation|nekocafe-member"}[5m]) > 0.8
+      - alert: ServiceHighMemory
+        expr: avg by (service_name, release_channel) (nekocafe_process_memory_rss_bytes{service_name=~"reservation-service|member-service"}) > 4e8
         for: 10m
         labels:
           severity: warning
         annotations:
-          summary: Application container CPU usage is above 80%.
+          summary: Application process memory usage is above 400MB.
+      - alert: ServiceNotReady
+        expr: up{job=~"reservation|member|reservation-rollout"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: One or more NekoCafe services are not being scraped by Prometheus.

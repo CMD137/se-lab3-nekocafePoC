@@ -1,0 +1,27 @@
+namespace: prod
+
+resources:
+  - ../staging
+
+patches:
+  - target:
+      kind: Deployment
+      name: reservation
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Deployment
+      name: member
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  - target:
+      kind: Ingress
+      name: reservation-canary
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/nginx.ingress.kubernetes.io~1canary-weight
+        value: "5"

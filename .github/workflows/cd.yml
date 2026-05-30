@@ -1,6 +1,10 @@
 name: CD
 on:
-  push: { branches: [main] }
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -8,11 +12,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Prepare environment values
         run: cp .env.example .env
-      - name: Deploy to dev
-        run: echo "helm upgrade --install nekocafe ./infra/helm -f ./infra/helm/values-dev.yaml --namespace dev --create-namespace"
-      - name: Canary
+      - name: Render dev manifests
+        run: echo "kubectl apply -k ./infra/kustomize/overlays/dev"
+      - name: Render staging canary manifests
         run: |
-          echo "helm upgrade --install nekocafe ./infra/helm --set canary.enabled=true --set canary.weight=5"
-          echo "After metrics are healthy, promote to 100%."
+          echo "kubectl apply -k ./infra/kustomize/overlays/staging"
+          echo "Local demo uses docker-compose.cd-demo.yml + Traefik weighted service with stable=95 and canary=5."
+      - name: Promotion policy
+        run: |
+          echo "Promote when reservation canary P95 <= 800ms and error rate <= 1%."
+          echo "Promotion can be simulated locally with: node scripts/set-canary-weight.mjs 100 0"
       - name: Rollback policy
-        run: echo "Rollback when P95 > 800ms for 5m or error rate > 1% for 5m."
+        run: |
+          echo "Rollback when canary P95 > 800ms or error rate > 1%."
+          echo "Local watcher polls Prometheus every 15s over a 2m window and calls node scripts/rollback-canary.mjs."

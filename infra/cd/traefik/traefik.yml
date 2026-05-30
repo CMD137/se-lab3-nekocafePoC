@@ -1,0 +1,14 @@
+api:
+  dashboard: true
+  insecure: true
+
+entryPoints:
+  web:
+    address: ":8080"
+  traefik:
+    address: ":8089"
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true

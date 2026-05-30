@@ -40,6 +40,8 @@ services:
     restart: unless-stopped
     environment:
       SERVICE_NAME: reservation-service
+      SERVICE_VERSION: v1.0.0
+      RELEASE_CHANNEL: stable
       PORT: 8080
       DB_HOST: postgres
       DB_PORT: 5432
@@ -53,6 +55,9 @@ services:
       EVENT_BUS_NAME: rocketmq
       ROCKETMQ_NAMESRV_ADDR: rocketmq-namesrv:9876
       ACCESS_LOG_LEVEL: info
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_PROMETHEUS_PORT: 9464
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,7 +66,13 @@ services:
     ports:
       - "8081:8080"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/healthz').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -72,6 +83,8 @@ services:
     restart: unless-stopped
     environment:
       SERVICE_NAME: member-service
+      SERVICE_VERSION: v1.0.0
+      RELEASE_CHANNEL: stable
       PORT: 8080
       DB_HOST: postgres
       DB_PORT: 5432
@@ -85,6 +98,9 @@ services:
       EVENT_BUS_NAME: rocketmq
       ROCKETMQ_NAMESRV_ADDR: rocketmq-namesrv:9876
       ACCESS_LOG_LEVEL: info
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_PROMETHEUS_PORT: 9464
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,7 +109,13 @@ services:
     ports:
       - "8082:8080"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/healthz').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5

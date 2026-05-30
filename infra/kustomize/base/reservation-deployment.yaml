@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reservation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reservation
+      release: stable
+  template:
+    metadata:
+      labels:
+        app: reservation
+        release: stable
+    spec:
+      containers:
+        - name: reservation
+          image: ghcr.io/cmd137/nekocafe-reservation:v1.0.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SERVICE_NAME
+              value: reservation-service
+            - name: SERVICE_VERSION
+              value: v1.0.0
+            - name: RELEASE_CHANNEL
+              value: stable
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.monitoring:4318
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080

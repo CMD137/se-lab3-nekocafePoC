@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yaml
+
+scrape_configs:
+  - job_name: reservation
+    static_configs:
+      - targets: ["reservation:9464"]
+
+  - job_name: member
+    static_configs:
+      - targets: ["member:9464"]
+
+  - job_name: reservation-rollout
+    static_configs:
+      - targets: ["reservation-stable:9464", "reservation-canary:9464"]

@@ -1,0 +1,10 @@
+namespace: dev
+
+resources:
+  - ../../base
+
+images:
+  - name: ghcr.io/cmd137/nekocafe-reservation
+    newTag: v1.0.0
+  - name: ghcr.io/cmd137/nekocafe-member
+    newTag: v1.0.0

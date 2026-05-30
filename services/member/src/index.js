@@ -4,10 +4,22 @@ const pino = require("pino");
 const { randomUUID } = require("node:crypto");
 const { Pool } = require("pg");
 const { createClient } = require("redis");
+const {
+  context,
+  finishRequestSpan,
+  getToolkit,
+  shutdownTelemetry,
+  startRequestSpan,
+  startTelemetry,
+} = require("./telemetry");
 
 const SERVICE_NAME = process.env.SERVICE_NAME || "member-service";
 const PORT = Number.parseInt(process.env.PORT || "8080", 10);
 const API_PREFIX = "/member/v1";
+const RELEASE_CHANNEL = process.env.RELEASE_CHANNEL || "stable";
+const SERVICE_VERSION = process.env.SERVICE_VERSION || "dev";
+const INJECT_LATENCY_MS = Number.parseInt(process.env.INJECT_LATENCY_MS || "0", 10);
+const ERROR_RATE_PERCENT = Number.parseFloat(process.env.ERROR_RATE_PERCENT || "0");
 
 class AppError extends Error {
   constructor(status, code, message, details = []) {
@@ -22,6 +34,11 @@ function createLogger() {
   return pino({
     name: SERVICE_NAME,
     level: process.env.ACCESS_LOG_LEVEL || "info",
+    base: {
+      service: SERVICE_NAME,
+      releaseChannel: RELEASE_CHANNEL,
+      serviceVersion: SERVICE_VERSION,
+    },
   });
 }
 
@@ -46,21 +63,74 @@ function createAuthMiddleware(secret) {
   };
 }
 
-function requestContext(logger) {
+function requestContext(logger, telemetry) {
   return (req, res, next) => {
-    req.traceId = req.headers["x-trace-id"] || randomUUID();
+    const requestSpan = startRequestSpan(telemetry, SERVICE_NAME, req);
+    req.span = requestSpan.span;
+    req.traceId = requestSpan.span.spanContext().traceId || randomUUID();
     res.setHeader("x-trace-id", req.traceId);
 
     const startedAt = Date.now();
     res.on("finish", () => {
+      const durationMs = Date.now() - startedAt;
+      const route = req.route?.path ? `${req.baseUrl || ""}${req.route.path}` : req.originalUrl;
+      const attributes = {
+        service_name: SERVICE_NAME,
+        release_channel: RELEASE_CHANNEL,
+        service_version: SERVICE_VERSION,
+        method: req.method,
+        route,
+        status_code: String(res.statusCode),
+      };
+
+      telemetry.requestCounter.add(1, attributes);
+      telemetry.requestDuration.record(durationMs, attributes);
+      telemetry.activeRequests.add(-1, {
+        service_name: SERVICE_NAME,
+        release_channel: RELEASE_CHANNEL,
+      });
+
+      telemetry.emitLog(res.statusCode >= 500 ? "WARN" : "INFO", "http request completed", {
+        ...attributes,
+        trace_id: req.traceId,
+        duration_ms: durationMs,
+      });
+
+      finishRequestSpan(requestSpan, res.statusCode, route, durationMs);
+
       logger.info({
         traceId: req.traceId,
         method: req.method,
         path: req.originalUrl,
         statusCode: res.statusCode,
-        durationMs: Date.now() - startedAt,
+        durationMs,
       });
     });
+
+    telemetry.activeRequests.add(1, {
+      service_name: SERVICE_NAME,
+      release_channel: RELEASE_CHANNEL,
+    });
+
+    context.with(requestSpan.activeContext, () => next());
+  };
+}
+
+function createFaultInjectionMiddleware() {
+  return async (req, _res, next) => {
+    if (req.path === "/healthz" || req.path === "/readyz") {
+      next();
+      return;
+    }
+
+    if (INJECT_LATENCY_MS > 0) {
+      await new Promise((resolve) => setTimeout(resolve, INJECT_LATENCY_MS));
+    }
+
+    if (ERROR_RATE_PERCENT > 0 && Math.random() * 100 < ERROR_RATE_PERCENT) {
+      next(new AppError(503, "CANARY_FAULT", "Injected canary fault for progressive delivery demo."));
+      return;
+    }
 
     next();
   };
@@ -416,15 +486,18 @@ async function buildDependencies(logger) {
   return { pool, redis, repository };
 }
 
-function createApp({ logger, repository, redis, authMiddleware }) {
+function createApp({ logger, repository, redis, authMiddleware, telemetry = getToolkit(SERVICE_NAME) }) {
   const app = express();
   app.use(express.json({ limit: "1mb" }));
-  app.use(requestContext(logger));
+  app.use(requestContext(logger, telemetry));
+  app.use(createFaultInjectionMiddleware());
 
   app.get("/healthz", (_req, res) => {
     res.json({
       service: SERVICE_NAME,
       status: "ok",
+      releaseChannel: RELEASE_CHANNEL,
+      version: SERVICE_VERSION,
       timestamp: new Date().toISOString(),
     });
   });
@@ -436,6 +509,7 @@ function createApp({ logger, repository, redis, authMiddleware }) {
       res.json({
         service: SERVICE_NAME,
         status: "ready",
+        releaseChannel: RELEASE_CHANNEL,
       });
     } catch (error) {
       next(new AppError(503, "NOT_READY", "Service dependencies are not ready.", [error.message]));
@@ -555,7 +629,18 @@ function createApp({ logger, repository, redis, authMiddleware }) {
       details: error.details || [],
     };
 
+    if (req.span) {
+      req.span.recordException(error);
+    }
+
     if (status >= 500) {
+      telemetry.emitLog("ERROR", "request failed", {
+        service_name: SERVICE_NAME,
+        release_channel: RELEASE_CHANNEL,
+        trace_id: payload.traceId,
+        error_code: code,
+        error_message: payload.message,
+      });
       logger.error({ err: error, traceId: payload.traceId }, "request failed");
     }
 
@@ -566,6 +651,8 @@ function createApp({ logger, repository, redis, authMiddleware }) {
 }
 
 async function start() {
+  await startTelemetry(SERVICE_NAME);
+  const telemetry = getToolkit(SERVICE_NAME);
   const logger = createLogger();
   const dependencies = await buildDependencies(logger);
   const app = createApp({
@@ -573,6 +660,7 @@ async function start() {
     repository: dependencies.repository,
     redis: dependencies.redis,
     authMiddleware: createAuthMiddleware(process.env.JWT_SECRET || "replace-me-in-env"),
+    telemetry,
   });
 
   const server = app.listen(PORT, () => {
@@ -584,6 +672,7 @@ async function start() {
     server.close(async () => {
       await dependencies.redis.quit();
       await dependencies.pool.end();
+      await shutdownTelemetry();
       process.exit(0);
     });
   }
